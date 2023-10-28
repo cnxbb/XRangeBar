@@ -1,0 +1,76 @@
+.XRangeBar-bar {
+    box-sizing: border-box;
+    position: absolute;
+    background-color:#c5dcd3;
+    -moz-user-select: none; 
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    -khtml-user-select: none; 
+    user-select: none; 
+}
+
+.XRangeBar-btn-less, .XRangeBar-btn-greater {
+    box-sizing: border-box;
+    position:absolute;
+}
+
+.XRangeBar-tip-less, .XRangeBar-tip-greater {
+    box-sizing: border-box;
+    position: absolute;
+}
+
+.XRANGEBAR_TIP_L::before {
+    right: 0px;
+    content: "";
+    position: absolute;
+    display: block;
+    width: 0;
+    height: 0;
+    top: 50%;
+    transform: translate(100%, -50%);
+    border-left: 5px solid rgba(0,0,0,0);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+}
+
+.XRANGEBAR_TIP_R::before {
+    left: 0px;
+    content: "";
+    position: absolute;
+    display: block;
+    width: 0;
+    height: 0;
+    top: 50%;
+    transform: translate(-100%, -50%);
+    border-right: 5px solid rgba(0,0,0,0);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+}
+
+.XRANGEBAR_TIP_T::before {
+    left: 50%;
+    content: "";
+    position: absolute;
+    display: block;
+    width: 0;
+    height: 0;
+    bottom: 0;
+    transform: translate(-50%, 100%);
+    border-top: 5px solid rgba(0,0,0,0);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+}
+
+.XRANGEBAR_TIP_B::before {
+    left: 50%;
+    content: "";
+    position: absolute;
+    display: block;
+    width: 0;
+    height: 0;
+    top: 0;
+    transform: translate(-50%, -100%);
+    border-bottom: 5px solid rgba(0,0,0,0);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+}
