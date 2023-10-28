@@ -129,57 +129,53 @@ class XRangeBar {
         this.TipLess = null;
         this.TipGreater = null;
 
-        window.addEventListener('touchstart', ( function( pThis ) {
+        this.startfnc = ( function( pThis ) {
             return function( e ) {
                 if( $(e.target).closest('#'+pThis.Option.elid).length > 0 ) {
                     if( $(e.target).closest('.XRangeBar-btn-less').length > 0 ||
-                        $(e.target).closest('.XRangeBar-tip-less').length > 0 ) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        pThis.Touch = true;
-                        pThis.old_Y = e.touches[0].clientY;
-                        pThis.old_X = e.touches[0].clientX;
-                        pThis.daltaY = 0;
-                        pThis.daltaX = 0;
-                        pThis.CurBtn = $(e.target).closest('.XRangeBar-btn-less');
-                    }
-
-                    if( $(e.target).closest('.XRangeBar-btn-greater').length > 0 ||
+                        $(e.target).closest('.XRangeBar-tip-less').length > 0 ||
+                        $(e.target).closest('.XRangeBar-btn-greater').length > 0 ||
                         $(e.target).closest('.XRangeBar-tip-greater').length > 0 ) {
                         e.preventDefault();
                         e.stopPropagation();
                         pThis.Touch = true;
-                        pThis.old_Y = e.touches[0].clientY;
-                        pThis.old_X = e.touches[0].clientX;
+                        pThis.old_Y = e.clientY || e.touches[0].clientY;
+                        pThis.old_X = e.clientX || e.touches[0].clientX;
                         pThis.daltaY = 0;
                         pThis.daltaX = 0;
+                    }
+                    if( $(e.target).closest('.XRangeBar-btn-less').length > 0 ||
+                        $(e.target).closest('.XRangeBar-tip-less').length > 0 ) {
+                        pThis.CurBtn = $(e.target).closest('.XRangeBar-btn-less');
+                    } 
+
+                    if( $(e.target).closest('.XRangeBar-btn-greater').length > 0 ||
+                        $(e.target).closest('.XRangeBar-tip-greater').length > 0 ) {
                         pThis.CurBtn = $(e.target).closest('.XRangeBar-btn-greater');
                     }
                 }
             };
-        } )( this ), { passive: false } );
-        //------------------------------------------------------------------------------------
-        
-        window.addEventListener('touchend', ( function( pThis ) {
-            return function( e ) {
-                if( $(e.target).closest('#'+pThis.Option.elid).length > 0 ) {
-                    pThis.Touch = false;
-                    pThis.CurBtn = null;
-                }
-            };
-        } )( this ), { passive: false } );
-        //------------------------------------------------------------------------------------
+        }( this ) );
 
-        window.addEventListener('touchmove', ( function( pThis ) {
-            return function( e ) { 
+        this.endfnc = ( function( pThis ) {
+            return function( e ) {
+                pThis.Touch = false;
+                pThis.CurBtn = null;
+            };
+        }( this ) );
+        
+        this.movefnc = ( function( pThis ) {
+            return function( e ) {
                 if( !pThis.Touch ) {
                     return;
                 }
                 e.preventDefault();
                 e.stopPropagation();
+                var CX = e.clientX || e.touches[0].clientX,
+                    CY = e.clientY || e.touches[0].clientY;
                 if( pThis.Option.orient == 'H' ) {
                     var npos, minpos, maxpos, val;
-                    pThis.deltaX = e.touches[0].clientX - pThis.old_X;
+                    pThis.deltaX = CX - pThis.old_X;
                     npos = parseInt( pThis.CurBtn.css('left') ) + pThis.deltaX;
                     if( pThis.CurBtn.hasClass('XRangeBar-btn-less') ) {
                         pThis.BtnGreater.css({'z-index':10});
@@ -204,7 +200,7 @@ class XRangeBar {
                     
                 } else if ( pThis.Option.orient == 'V' ) {
                     var npos, minpos, maxpos, val;
-                    pThis.deltaY = e.touches[0].clientY - pThis.old_Y;
+                    pThis.deltaY = CY - pThis.old_Y;
                     npos = parseInt( pThis.CurBtn.css('top') ) + pThis.deltaY;
                     if( pThis.CurBtn.hasClass('XRangeBar-btn-less') ) {
                         pThis.BtnGreater.css({'z-index':10});
@@ -227,14 +223,21 @@ class XRangeBar {
                         pThis.MaxVal = ( npos + parseFloat( pThis.BtnGreater.css('height') ) ) * ( pThis.Option.max - pThis.Option.min ) / parseFloat( pThis.Container.css('height') ) + pThis.Option.min;
                     }
                 }
-                pThis.old_Y = e.touches[0].clientY;
-                pThis.old_X = e.touches[0].clientX;
+                pThis.old_Y = CY;
+                pThis.old_X = CX;
                 pThis.TipLess.text( sprintf( pThis.Option.format, pThis.MinVal ) ); 
                 pThis.TipGreater.text( sprintf( pThis.Option.format, pThis.MaxVal ) ); 
-                pThis.Container.trigger( 'change', [pThis.MinVal,pThis.MaxVal] );
+                pThis.Container.trigger( 'change', [pThis.MinVal,pThis.MaxVal] );   
             };
-        } )( this ), { passive: false } );
+        }( this ) );
         //------------------------------------------------------------------------------------
+
+        window.addEventListener('touchstart', this.startfnc, { passive: false } );
+        window.addEventListener('mousedown', this.startfnc, { passive: false } );
+        window.addEventListener('touchend', this.endfnc, { passive: false } );
+        window.addEventListener('mouseup', this.endfnc, { passive: false } );
+        window.addEventListener('touchmove', this.movefnc, { passive: false } );
+        window.addEventListener('mousemove', this.movefnc, { passive: false } );
 
         this.InitElement();
     }
@@ -291,7 +294,6 @@ class XRangeBar {
             styleElement.appendChild( document.createTextNode(`#${this.Option.elid} .XRANGEBAR_TIP_B::before { border-bottom-color:${bgcolor}}`) );
             document.getElementsByTagName('head')[0].appendChild( styleElement );
 
-            console.log( tw, th, bw, bh );
             if( this.Option.tiptype == XRANGEBAR_TIP_LR ) {
                 this.TipLess.addClass( 'XRANGEBAR_TIP_L' );
                 this.TipGreater.addClass( 'XRANGEBAR_TIP_R' );
@@ -324,5 +326,3 @@ class XRangeBar {
         }
     }
 }
-
-
