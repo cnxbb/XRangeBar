@@ -18,6 +18,9 @@
     $(document).ready(function() {
         barh = new XRangeBar( {
             elid : 'barH',
+            min : 900,
+            max : 1000,
+            kbstep : 10,
             barcss : {
                 'height'        : '4px',
                 'border-radius' : '2px',
@@ -43,12 +46,13 @@
             elid : 'barV',
             min : 100,
             max : 211,
+            kbstep : 1,
             orient : 'V',
         } );
 
-        $("#barV").on('change', function( e, min, max ) {
+        $("#barV, #barH").on('change', function( e, min, max ) {
             //范围变更通知
-            console.log( min, max );
+            console.log( 'change', min, max );
         } );
     });
 </script>
