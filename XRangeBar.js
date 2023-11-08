@@ -1,5 +1,5 @@
 /* 
-XRangeBar 范围选择控件 by zmz 2023-10-28
+XRangeBar 范围选择控件 by zmz 2023-11-08
 依赖 jquery sprintf 请在页面中引入相关JS
 
 配置参数 opt : {
@@ -11,6 +11,7 @@ XRangeBar 范围选择控件 by zmz 2023-10-28
     barcss      滑轨css json 描述 如 { width:'100px', height:'100px' }    
     btncss      滑块css 同barcss
     tipcss      提示文字CSS 同barcss
+    kbstep      键盘上下左右移动步长值 默认为0 0时无键盘功能
 }
 */
 
@@ -50,6 +51,8 @@ const XRANGEBAR_DEFAULT_STYPE = {
             'background'    : '#FF0000',
             'transform'     : 'translate(-50%, -50%)',
             'border'        : '2px solid #00f',
+            'cursor'        : 'pointer',
+            'outline'       : 'none',
         },
         'TIP' : {
             'text-align'    : 'center',
@@ -70,7 +73,8 @@ const XRANGEBAR_DEFAULT_STYPE = {
             'font-size'     : '1px',
             'left'          : '50%',
             'transform'     : 'translate(-50%,0)',
-            'border-radius' : '5px',    
+            'border-radius' : '5px', 
+            'cursor'        : 'pointer',
         },
         'BTN' : {
             'width'         : '30px',
@@ -79,6 +83,7 @@ const XRANGEBAR_DEFAULT_STYPE = {
             'background'    : '#FF0000',
             'transform'     : 'translate(-50%, -50%)',
             'border'        : '2px solid #00f',
+            'outline'       : 'none',
         },
         'TIP' : {
             'text-align'    : 'center',
@@ -100,7 +105,9 @@ class XRangeBar {
         this.Option.min = typeof( opt.min ) != 'undefined' ? opt.min : 0;
         this.Option.max = typeof( opt.max ) != 'undefined' ? opt.max : 100; 
         this.Option.format = typeof( opt.format ) != 'undefined' ? opt.format : '%.02f';
-        this.Option.orient = typeof( opt.orient ) != 'undefined' ? opt.orient : 'H';  
+        this.Option.orient = typeof( opt.orient ) != 'undefined' ? opt.orient : 'H';
+        this.Option.kbstep = typeof( opt.kbstep ) != 'undefined' ? opt.kbstep : 0;
+        
         if( this.Option.orient == 'H' || this.Option.orient == 'h' ) {
             this.Option.tiptype = typeof( opt.tiptype ) != 'undefined' ? opt.tiptype : XRANGEBAR_TIP_TB;
             this.Option.barcss = Object.assign( {}, XRANGEBAR_DEFAULT_STYPE.H.BAR, typeof( opt.barcss ) != 'undefined' ? opt.barcss : {} );
@@ -116,6 +123,8 @@ class XRangeBar {
 
         this.MinVal = this.Option.min;
         this.MaxVal = this.Option.max;
+        this.OldMinVal = this.MinVal;
+        this.OldMaxVal = this.MaxVal;
         this.Container = $("#"+opt.elid);
         this.Touch = false;
         this.old_X = 0;
@@ -139,8 +148,13 @@ class XRangeBar {
                         e.preventDefault();
                         e.stopPropagation();
                         pThis.Touch = true;
-                        pThis.old_Y = e.clientY || e.touches[0].clientY;
-                        pThis.old_X = e.clientX || e.touches[0].clientX;
+                        if( e.type == 'mousedown' ) {
+                            pThis.old_Y = e.clientY;
+                            pThis.old_X = e.clientX;
+                        } else if( e.type == 'toucstart' ) {
+                            pThis.old_Y = e.touches[0].clientY;
+                            pThis.old_X = e.touches[0].clientX;
+                        }
                         pThis.daltaY = 0;
                         pThis.daltaX = 0;
                     }
@@ -171,8 +185,14 @@ class XRangeBar {
                 }
                 e.preventDefault();
                 e.stopPropagation();
-                var CX = e.clientX || e.touches[0].clientX,
-                    CY = e.clientY || e.touches[0].clientY;
+                let CX, CY;
+                if( e.type == 'mousemove' ) {
+                    CX = e.clientX;
+                    CY = e.clientY;
+                } else if( e.type == 'touchmove' ) {
+                    CX = e.touches[0].clientX;
+                    CY = e.touches[0].clientY;
+                }
                 if( pThis.Option.orient == 'H' ) {
                     var npos, minpos, maxpos, val;
                     pThis.deltaX = CX - pThis.old_X;
@@ -225,9 +245,17 @@ class XRangeBar {
                 }
                 pThis.old_Y = CY;
                 pThis.old_X = CX;
-                pThis.TipLess.text( sprintf( pThis.Option.format, pThis.MinVal ) ); 
-                pThis.TipGreater.text( sprintf( pThis.Option.format, pThis.MaxVal ) ); 
-                pThis.Container.trigger( 'change', [pThis.MinVal,pThis.MaxVal] );   
+                let sv_min = sprintf( pThis.Option.format, pThis.MinVal ),
+                    sv_max = sprintf( pThis.Option.format, pThis.MaxVal )
+                pThis.TipLess.text( sv_min ); 
+                pThis.TipGreater.text( sv_max ); 
+                
+                if( pThis.OldMinVal != sv_min ||
+                    pThis.OldMaxVal != sv_max ) {
+                    pThis.OldMinVal = sv_min;
+                    pThis.OldMaxVal = sv_max;
+                    pThis.Container.trigger( 'change', [sv_min,sv_max] );   
+                }
             };
         }( this ) );
         //------------------------------------------------------------------------------------
@@ -242,10 +270,76 @@ class XRangeBar {
         this.InitElement();
     }
     
+    destructor(){
+        window.removeEventListener('touchstart', this.startfnc, { passive: false } );
+        window.removeEventListener('mousedown', this.startfnc, { passive: false } );
+        window.removeEventListener('touchend', this.endfnc, { passive: false } );
+        window.removeEventListener('mouseup', this.endfnc, { passive: false } );
+        window.removeEventListener('touchmove', this.movefnc, { passive: false } );
+        window.removeEventListener('mousemove', this.movefnc, { passive: false } );
+    }
+
     //初始化HTML元素
     InitElement() {
         var bar = $(`<div class="XRangeBar-bar"><div class="XRangeBar-btn XRangeBar-btn-less"><div class="XRangeBar-tip XRangeBar-tip-less">${sprintf(this.Option.format,this.MinVal)}</div></div><div class="XRangeBar-btn XRangeBar-btn-greater"><div class="XRangeBar-tip XRangeBar-tip-greater">${sprintf(this.Option.format,this.MaxVal)}</div></div></div>`);
-        $('#'+this.Option.elid).append( bar );        
+        $('#'+this.Option.elid).append( bar ); 
+        if( this.Option.kbstep > 0 ) {
+            if( $("#XRangeBar-Input-Focus").length < 1 ) {
+                $("body").append( $(`<input type="text" id="XRangeBar-Input-Focus" style="position:absolute;top:-100px;" />`) );
+                $("#XRangeBar-Input-Focus").on( 'keydown', function( e ) {
+                    let pThis = $("#XRangeBar-Input-Focus").data('barobj');
+                    let btnid = $("#XRangeBar-Input-Focus").attr('data-target');
+                    if( !pThis ) {
+                        return;
+                    }
+                    if( pThis.Option.orient == 'H' ) {
+                        if( e.keyCode == 37 ) { 
+                            //左移 
+                            pThis.moveslider( btnid, -pThis.Option.kbstep ); 
+                        } else if( e.keyCode == 39 ) {
+                            //右移
+                            pThis.moveslider( btnid, pThis.Option.kbstep ); 
+                        }
+                    } else if( pThis.Option.orient == 'V' ) {
+                        if( e.keyCode == 38 ) {
+                            //上移
+                            pThis.moveslider( btnid, -pThis.Option.kbstep ); 
+                        } else if( e.keyCode == 40 ) {
+                            //下移
+                            pThis.moveslider( btnid, pThis.Option.kbstep ); 
+                        }
+                    }
+                } );
+                $("#XRangeBar-Input-Focus").on( 'blur', function( e ) {
+                    let tid = $("#XRangeBar-Input-Focus").attr('data-target');
+                    if( tid ) {
+                        $('#'+tid).css('outline','none');
+                        $('#'+tid).removeAttr('id');
+                        $("#XRangeBar-Input-Focus").removeAttr('data-target');
+                        $("#XRangeBar-Input-Focus").removeData('barobj' );
+                    }
+                } );
+            }
+            bar.find('.XRangeBar-btn').click( e => {
+                let el = $(e.target).closest('.XRangeBar-btn'); 
+                if(  el.css('outline-style') == 'none' ) {
+                    let pcolor = $(e.target).closest('.XRangeBar-bar').css('background-color');
+                    $('.XRangeBar-btn').css('outline', 'none' );
+                    el.css('outline',`4px solid ${pcolor}` );
+                    let nid = 'XRangeBar-btn-' + parseInt( Math.random() * 10000 ).toString();
+                    el.attr('id', nid );
+                    $("#XRangeBar-Input-Focus").attr('data-target',nid );
+                    $("#XRangeBar-Input-Focus").focus();
+                    $("#XRangeBar-Input-Focus").data( 'barobj', this );
+                } else {
+                    el.css('outline', 'none' );
+                    el.removeAttr('id');
+                    $("#XRangeBar-Input-Focus").removeAttr('data-target');
+                    $("#XRangeBar-Input-Focus").blur();
+                    $("#XRangeBar-Input-Focus").removeData('barobj' );
+                }
+            } );
+        }
         this.BtnLess = bar.find('.XRangeBar-btn-less');
         this.BtnGreater = bar.find('.XRangeBar-btn-greater');
         this.TipLess = bar.find('.XRangeBar-tip-less');
@@ -323,6 +417,77 @@ class XRangeBar {
                 this.TipLess.css( {bottom: `-${th+7+bbw}px`} );
                 this.TipLess.css( {left: `-${(tw-bw)/2+bbw}px`} );
             }
+        } 
+    }
+
+    //键盘步长移动
+    moveslider( btnid, val ) {
+        let sv_min, sv_max;
+        if( this.Option.orient == 'H' ) {
+            if( $(`#${btnid}`).closest('.XRangeBar-btn-greater').length > 0 ) {
+                let minpos = - parseFloat( this.BtnGreater.css('width') ),
+                    maxpos = parseFloat( this.Container.css('width') ) - parseFloat( this.BtnGreater.css('width') ),
+                    nleft,
+                    nv = this.MaxVal + val;
+                if( nv > this.Option.max ) { nv = this.Option.max; }
+                if( nv < this.MinVal ) { nv = this.MinVal; }
+                nleft = minpos + ( maxpos - minpos ) * ( nv - this.Option.min ) / ( this.Option.max - this.Option.min ) ;
+                this.MaxVal = nv;
+                this.BtnGreater.css('left',  nleft + 'px' );
+                sv_min = sprintf( this.Option.format, this.MinVal );
+                sv_max = sprintf( this.Option.format, this.MaxVal );
+                this.TipGreater.text( sv_max ); 
+            } 
+            else if( $(`#${btnid}`).closest('.XRangeBar-btn-less').length > 0 ) {
+                let minpos = 0,
+                    maxpos = parseFloat( this.Container.css('width') ),
+                    nleft,
+                    nv = this.MinVal + val;
+                if( nv > this.MaxVal ) { nv = this.MaxVal; }
+                if( nv < this.Option.min ) { nv = this.Option.min; }
+                nleft = minpos + ( maxpos - minpos ) * ( nv - this.Option.min ) / ( this.Option.max - this.Option.min ) ;
+                this.MinVal = nv;
+                this.BtnLess.css('left',  nleft + 'px' );
+                sv_min = sprintf( this.Option.format, this.MinVal );
+                sv_max = sprintf( this.Option.format, this.MaxVal );
+                this.TipLess.text( sv_min ); 
+            }
+        } else if ( this.Option.orient == 'V' ) {
+            if( $(`#${btnid}`).closest('.XRangeBar-btn-greater').length > 0 ) {
+                let minpos = - parseFloat( this.BtnGreater.css('height') ),
+                    maxpos = parseFloat( this.Container.css('height') ) - parseFloat( this.BtnGreater.css('height') ),
+                    ntop,
+                    nv = this.MaxVal + val;
+                if( nv > this.Option.max ) { nv = this.Option.max; }
+                if( nv < this.MinVal ) { nv = this.MinVal; }
+                ntop = minpos + ( maxpos - minpos ) * ( nv - this.Option.min )  / ( this.Option.max - this.Option.min ) ;
+                this.MaxVal = nv;
+                this.BtnGreater.css('top',  ntop + 'px' );
+                sv_min = sprintf( this.Option.format, this.MinVal );
+                sv_max = sprintf( this.Option.format, this.MaxVal );
+                this.TipGreater.text( sv_max ); 
+            }  
+            else if( $(`#${btnid}`).closest('.XRangeBar-btn-less').length > 0 ) {
+                let minpos = 0,
+                    maxpos = parseFloat( this.Container.css('height') ),
+                    ntop,
+                    nv = this.MinVal + val;
+                if( nv > this.MaxVal ) { nv = this.MaxVal; }
+                if( nv < this.Option.min ) { nv = this.Option.min; }
+                ntop = minpos + ( maxpos - minpos ) * ( nv - this.Option.min ) / ( this.Option.max - this.Option.min ) ;
+                this.MinVal = nv;
+                this.BtnLess.css('top',  ntop + 'px' );
+                sv_min = sprintf( this.Option.format, this.MinVal );
+                sv_max = sprintf( this.Option.format, this.MaxVal );
+                this.TipLess.text( sv_min ); 
+            }      
+        }
+        if( this.OldMinVal != sv_min ||
+            this.OldMaxVal != sv_max ) {
+            this.OldMinVal = sv_min;
+            this.OldMaxVal = sv_max;
+            this.Container.trigger( 'change', [sv_min,sv_max] );   
         }
     }
+
 }
